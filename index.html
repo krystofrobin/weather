@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Weather</title>
+  <meta name="description" content="Ad-free weather and rain radar, powered by DWD ICON forecasts.">
+  <meta name="theme-color" content="#0b1424">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Weather">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-sky="clear-day">
+  <div id="app">
+    <!-- Forecast -->
+    <section id="view-forecast" class="view active" aria-label="Forecast">
+      <header class="place-header">
+        <button id="place-button" class="place-button" aria-label="Change place">
+          <span id="place-name">Loading…</span>
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M7 10l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+        <div id="updated" class="updated"></div>
+      </header>
+
+      <div id="status" class="status" hidden></div>
+
+      <div id="current" class="current"></div>
+      <div id="nowcast" class="card nowcast" hidden></div>
+      <div id="hourly" class="card hourly"></div>
+      <div id="daily" class="card daily"></div>
+      <div id="details" class="details"></div>
+      <footer class="credits">
+        Forecast: <a href="https://www.dwd.de" target="_blank" rel="noopener">DWD</a> ICON via
+        <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> (CC BY 4.0)
+      </footer>
+    </section>
+
+    <!-- Radar -->
+    <section id="view-radar" class="view" aria-label="Radar">
+      <div id="map"></div>
+      <div class="radar-top">
+        <div class="seg" id="radar-source" role="radiogroup" aria-label="Radar source">
+          <button data-source="rainviewer" class="on">Europe</button>
+          <button data-source="dwd">DWD Germany</button>
+        </div>
+      </div>
+      <div class="radar-controls card">
+        <button id="radar-play" class="play" aria-label="Play">
+          <svg viewBox="0 0 24 24" width="22" height="22"><path id="play-icon" d="M8 5v14l11-7z" fill="currentColor"/></svg>
+        </button>
+        <div class="radar-timeline">
+          <input id="radar-slider" type="range" min="0" max="0" value="0" aria-label="Radar time">
+          <div class="radar-time"><span id="radar-time">--:--</span><span id="radar-kind"></span></div>
+        </div>
+      </div>
+      <div class="radar-legend" aria-hidden="true">
+        <span>light</span><i></i><span>heavy</span>
+      </div>
+    </section>
+
+    <!-- Places -->
+    <section id="view-places" class="view" aria-label="Places">
+      <h1 class="view-title">Places</h1>
+      <div class="search">
+        <input id="search" type="search" placeholder="Search city or town" autocomplete="off" enterkeyhint="search">
+      </div>
+      <ul id="search-results" class="list"></ul>
+      <ul id="places" class="list"></ul>
+
+      <h2 class="section-title">Settings</h2>
+      <div class="card settings">
+        <label class="row">
+          <span>Forecast model</span>
+          <select id="model">
+            <option value="icon_seamless">DWD ICON (recommended)</option>
+            <option value="best_match">Open-Meteo best match</option>
+            <option value="ecmwf_ifs025">ECMWF IFS</option>
+            <option value="meteofrance_seamless">Météo-France AROME</option>
+          </select>
+        </label>
+        <label class="row">
+          <span>Wind speed</span>
+          <select id="wind-unit">
+            <option value="kmh">km/h</option>
+            <option value="ms">m/s</option>
+            <option value="bft">Beaufort</option>
+          </select>
+        </label>
+        <p class="hint">DWD ICON uses the 2&nbsp;km ICON-D2 model for Germany and neighbouring countries for the first 2 days, then ICON-EU and ICON global. Days beyond its range are filled from Open-Meteo's best match.</p>
+      </div>
+    </section>
+  </div>
+
+  <nav class="tabbar" aria-label="Main">
+    <button data-view="forecast" class="on">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg>
+      <span>Forecast</span>
+    </button>
+    <button data-view="radar">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><path d="M12 12l6-6"/></svg>
+      <span>Radar</span>
+    </button>
+    <button data-view="places">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
+      <span>Places</span>
+    </button>
+  </nav>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
