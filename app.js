@@ -628,15 +628,11 @@ function initMap() {
   const center = place ? [place.lat, place.lon] : [50.5, 10.5];
   radar.map = L.map('map', { zoomControl: true, attributionControl: true, minZoom: 3, maxZoom: 11 })
     .setView(center, place ? 8 : 6);
-  radar.map.createPane('labels');
-  radar.map.getPane('labels').style.zIndex = 650;
-  radar.map.getPane('labels').style.pointerEvents = 'none';
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-    subdomains: 'abcd',
-  }).addTo(radar.map);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', {
-    subdomains: 'abcd', pane: 'labels',
+  // OpenStreetMap's standard tiles need no API key; a CSS filter turns them into a dark map.
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    className: 'basemap',
+    maxZoom: 19,
   }).addTo(radar.map);
 }
 
