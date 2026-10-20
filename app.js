@@ -617,7 +617,7 @@ const radar = {
   frames: [], // {time: Date, kind: 'past'|'nowcast', layer}
   index: 0,
   timer: null,
-  source: store.get('radarSource', 'rainviewer'),
+  source: store.get('radarSource', 'dwd'),
   marker: null,
   loadedAt: 0,
 };
@@ -668,17 +668,30 @@ async function loadRainViewer() {
   }));
 }
 
-function loadDwd() {
-  // DWD radar composite (5-minute steps). Use the last 2 hours in 10-minute steps,
-  // ending a few minutes ago so the newest image is published.
+// The time of the newest DWD radar scan. The layer's own capabilities document says so exactly;
+// if it can't be read, assume a scan every 5 minutes, published about 5 minutes later.
+async function dwdLatestScan() {
+  try {
+    const res = await fetch(`${DWD_WMS_URL.replace('/wms', '/Niederschlagsradar/wms')}?service=WMS&version=1.3.0&request=GetCapabilities`);
+    const xml = await res.text();
+    const m = xml.match(/name="REFERENCE_TIME"[^>]*default="([^"]+)"/);
+    if (m) return new Date(m[1]).getTime();
+  } catch { /* fall through */ }
+  const FIVE_MIN = 5 * 60 * 1000;
+  return Math.floor((Date.now() - FIVE_MIN) / FIVE_MIN) * FIVE_MIN;
+}
+
+async function loadDwd() {
+  // DWD radar composite: observed scans plus DWD's radar-based nowcast up to 2 hours ahead.
+  // Show 2 hours back and 2 hours forward in 10-minute steps.
   const step = 10 * 60 * 1000;
-  const latest = Math.floor((Date.now() - 8 * 60 * 1000) / (5 * 60 * 1000)) * 5 * 60 * 1000;
+  const latest = await dwdLatestScan();
   const frames = [];
-  for (let k = 12; k >= 0; k--) {
-    const time = new Date(latest - k * step);
+  for (let k = -12; k <= 12; k++) {
+    const time = new Date(latest + k * step);
     frames.push({
       time,
-      kind: 'past',
+      kind: k > 0 ? 'nowcast' : 'past',
       layer: L.tileLayer.wms(DWD_WMS_URL, {
         layers: 'dwd:Niederschlagsradar',
         format: 'image/png',
@@ -703,7 +716,7 @@ async function loadRadar(force = false) {
   $('#radar-time').textContent = 'Loading…';
   $('#radar-kind').textContent = '';
   try {
-    radar.frames = radar.source === 'dwd' ? loadDwd() : await loadRainViewer();
+    radar.frames = radar.source === 'dwd' ? await loadDwd() : await loadRainViewer();
   } catch (err) {
     $('#radar-time').textContent = 'Radar unavailable';
     $('#radar-kind').textContent = err.message;
@@ -714,6 +727,9 @@ async function loadRadar(force = false) {
   const slider = $('#radar-slider');
   slider.max = String(Math.max(0, radar.frames.length - 1));
   const lastPast = radar.frames.map((f) => f.kind).lastIndexOf('past');
+  const nowMark = $('#radar-now');
+  nowMark.hidden = lastPast === radar.frames.length - 1;
+  nowMark.style.left = `${(lastPast / Math.max(1, radar.frames.length - 1)) * 100}%`;
   showFrame(lastPast === -1 ? radar.frames.length - 1 : lastPast);
 }
 
@@ -726,7 +742,9 @@ function showFrame(i) {
   $('#radar-slider').value = String(radar.index);
   $('#radar-time').textContent = f.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
   const mins = Math.round((f.time - now) / 60000);
-  $('#radar-kind').textContent = f.kind === 'nowcast' ? `Forecast +${mins} min` : mins > -8 ? 'Latest' : `${-mins} min ago`;
+  const kind = $('#radar-kind');
+  kind.textContent = f.kind === 'nowcast' ? `Forecast +${mins} min` : mins > -8 ? 'Now' : `${-mins} min ago`;
+  kind.classList.toggle('future', f.kind === 'nowcast');
 }
 
 function playRadar() {

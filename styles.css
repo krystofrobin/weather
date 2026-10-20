@@ -238,6 +238,12 @@ a { color: inherit; }
 .radar-timeline { flex: 1; min-width: 0; }
 .radar-timeline input { width: 100%; accent-color: var(--rain); margin: 0; }
 .radar-time { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-2); }
+.radar-track { position: relative; }
+.radar-now {
+  position: absolute; top: -6px; width: 2px; height: 8px; margin-left: -1px;
+  background: var(--text); border-radius: 1px; pointer-events: none;
+}
+#radar-kind.future { color: var(--accent); font-weight: 600; }
 #radar-time { font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
 .radar-legend {
   position: absolute; z-index: 500; right: 12px;
