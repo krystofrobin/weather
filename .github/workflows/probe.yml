@@ -9,17 +9,17 @@ jobs:
       - name: DWD WMS layers
         run: |
           curl -sS "https://maps.dwd.de/geoserver/dwd/wms?service=WMS&version=1.3.0&request=GetCapabilities" -o caps.xml
-          ls -la caps.xml
           python3 - <<'PY'
-          import re
-          x=open('caps.xml',encoding='utf-8',errors='replace').read()
-          for m in re.finditer(r'<Layer[^>]*>\s*<Name>(dwd:[^<]+)</Name>\s*<Title>([^<]*)</Title>(.*?)</Layer>', x, re.S):
-              name,title,body=m.groups()
-              if re.search(r'radar|nieder|rv|nowcast|radolan|wn|prog', name+title, re.I):
-                  dims=re.findall(r'<Dimension[^>]*name="(\w+)"[^>]*>([^<]{0,300})', body)
-                  print(name,'|',title,'|',[(d,v[:120]+' ... '+v[-120:]) for d,v in dims])
+          import xml.etree.ElementTree as ET, re
+          ns={'w':'http://www.opengis.net/wms'}
+          root=ET.parse('caps.xml').getroot()
+          names=[]
+          for L in root.iter('{http://www.opengis.net/wms}Layer'):
+              n=L.find('w:Name',ns); t=L.find('w:Title',ns)
+              if n is None: continue
+              names.append(n.text)
+              if re.search(r'radar|nieder|rv|nowcast|radolan|wn_|prog|precip', n.text+' '+(t.text or ''), re.I):
+                  dims=[(d.get('name'), d.get('default'), (d.text or '')[:150], (d.text or '')[-150:]) for d in L.findall('w:Dimension',ns)]
+                  print('###', n.text,'|',t.text,'|',dims)
+          print('ALL:', ' '.join(names))
           PY
-      - name: RainViewer
-        run: curl -sS https://api.rainviewer.com/public/weather-maps.json | head -c 1500; echo
-      - name: Open-Meteo multi-location minutely
-        run: curl -sS "https://api.open-meteo.com/v1/forecast?latitude=50,50.5&longitude=14,14.5&minutely_15=precipitation&forecast_minutely_15=4&models=icon_seamless" | head -c 800
