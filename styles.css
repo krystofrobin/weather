@@ -200,6 +200,7 @@ a { color: inherit; }
 #view-radar.active { display: block; position: fixed; inset: 0; }
 #map { position: absolute; inset: 0; background: #0b1424; }
 .leaflet-container { font: inherit; }
+.basemap { filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9) saturate(0.4); }
 .leaflet-control-attribution { font-size: 10px; background: rgba(0, 0, 0, 0.45) !important; color: #ccc; }
 .leaflet-control-attribution a { color: #ddd; }
 .leaflet-top { top: calc(var(--safe-top) + 56px); }
