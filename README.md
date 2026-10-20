@@ -19,6 +19,12 @@ A small, ad-free weather app with rain radar. It's a web app you install on your
 
 All of these are free and need no API key. Everything runs in the browser; there is no server.
 
+## Home Screen widget
+
+`widget/` holds a [Scriptable](https://scriptable.app) widget (small, medium, large and Lock Screen sizes).
+Open **Places → Home Screen widget** in the app for the copy-and-paste setup. The pasted script is a small loader
+that downloads `widget/weather-widget.js` from the site, so widget updates ship with the app.
+
 ## Install on iPhone
 
 1. Open the site in **Safari**.

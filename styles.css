@@ -301,6 +301,8 @@ a { color: inherit; }
   text-align: right; max-width: 60%; font-size: 15px;
 }
 .settings select option { color: #000; }
+.link-row { text-decoration: none; }
+.link-row .chev { color: var(--text-3); font-size: 22px; line-height: 1; }
 .hint { font-size: 13px; color: var(--text-3); padding: 10px 16px 14px; margin: 0; }
 
 /* Tab bar */
