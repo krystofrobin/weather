@@ -46,8 +46,8 @@
       <div id="map"></div>
       <div class="radar-top">
         <div class="seg" id="radar-source" role="radiogroup" aria-label="Radar source">
-          <button data-source="rainviewer" class="on">Europe</button>
-          <button data-source="dwd">DWD Germany</button>
+          <button data-source="dwd" class="on">DWD · next 2 h</button>
+          <button data-source="rainviewer">Europe · past only</button>
         </div>
       </div>
       <div class="radar-controls card">
@@ -55,7 +55,7 @@
           <svg viewBox="0 0 24 24" width="22" height="22"><path id="play-icon" d="M8 5v14l11-7z" fill="currentColor"/></svg>
         </button>
         <div class="radar-timeline">
-          <input id="radar-slider" type="range" min="0" max="0" value="0" aria-label="Radar time">
+          <div class="radar-track"><span id="radar-now" class="radar-now" hidden></span><input id="radar-slider" type="range" min="0" max="0" value="0" aria-label="Radar time"></div>
           <div class="radar-time"><span id="radar-time">--:--</span><span id="radar-kind"></span></div>
         </div>
       </div>

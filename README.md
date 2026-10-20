@@ -6,7 +6,7 @@ A small, ad-free weather app with rain radar. It's a web app you install on your
 - Current conditions, **next-2-hours rain** ("Rain likely from around 14:30") in 15-minute steps
 - 24-hour temperature curve with rain amounts and chances, plus a 10-day forecast
 - Wind, gusts, humidity, UV, sunrise/sunset, pressure, visibility
-- Animated **rain radar**: RainViewer (Europe/world) or the DWD composite (Germany)
+- Animated **rain radar** with **2-hour radar forecast** (DWD composite: Germany and border regions), or past-only radar for all of Europe (RainViewer)
 - Your current location plus any number of saved places; works offline with the last forecast
 
 **Data**
