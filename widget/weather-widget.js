@@ -206,7 +206,7 @@ module.exports = async function weatherWidget(opts = {}) {
     slots.forEach((s, k) => {
       const dry = s.mm < WET;
       const rate = s.mm * 4; // mm/h
-      const bh = dry ? 2 : Math.max(5, Math.min(1, Math.sqrt(rate / 8)) * (height - 2));
+      const bh = dry ? 2 : Math.max(8, Math.min(1, Math.sqrt(rate / 8)) * (height - 2));
       ctx.setFillColor(dry ? new Color('#ffffff', 0.25) : RAIN);
       const path = new Path();
       path.addRoundedRect(new Rect(k * (bw + gap), height - bh, bw, bh), 2, 2);
@@ -268,26 +268,31 @@ module.exports = async function weatherWidget(opts = {}) {
     addText(row, s.rain, size, { weight: 'semibold', color: s.rainSoon ? WHITE : DIM, scale: 0.75 });
   }
 
-  function hourlyRow(stack, hours, count) {
+  // Fixed-width columns: flexible spacers between unsized columns squeeze the text until iOS truncates it.
+  function hourlyRow(stack, hours, count, width) {
+    const colWidth = Math.floor(width / count);
     const row = stack.addStack();
-    hours.slice(0, count).forEach((h, k) => {
-      if (k) row.addSpacer();
+    row.size = new Size(colWidth * count, 0);
+    const centered = (col) => {
+      const r = col.addStack();
+      r.size = new Size(colWidth, 0);
+      r.addSpacer();
+      return r;
+    };
+    hours.slice(0, count).forEach((h) => {
       const col = row.addStack();
       col.layoutVertically();
-      col.centerAlignContent();
-      const top = col.addStack();
-      top.addSpacer();
-      addText(top, hourFmt.string(h.t), 11, { color: DIM });
+      col.size = new Size(colWidth, 0);
+      const top = centered(col);
+      addText(top, hourFmt.string(h.t), 11, { color: DIM, scale: 0.8 });
       top.addSpacer();
       col.addSpacer(3);
-      const mid = col.addStack();
-      mid.addSpacer();
+      const mid = centered(col);
       addSymbol(mid, symbolName(h.code, h.isDay), 16);
       mid.addSpacer();
       col.addSpacer(3);
-      const bot = col.addStack();
-      bot.addSpacer();
-      addText(bot, deg(h.temp), 12, { weight: 'semibold' });
+      const bot = centered(col);
+      addText(bot, deg(h.temp), 12, { weight: 'semibold', scale: 0.7 });
       bot.addSpacer();
     });
   }
@@ -354,14 +359,14 @@ module.exports = async function weatherWidget(opts = {}) {
       right.addSpacer(4);
       if (s.slots.length) right.addImage(rainChart(s.slots, 160, 26)).imageSize = new Size(160, 26);
       right.addSpacer(6);
-      hourlyRow(right, s.hours, 5);
+      hourlyRow(right, s.hours, 5, 160);
       w.addSpacer();
       footer(w, at, stale);
       return w;
     }
 
     // large
-    hourlyRow(right, s.hours, 5);
+    hourlyRow(right, s.hours, 5, 160);
     w.addSpacer(12);
     rainLine(w, s, 13);
     w.addSpacer(4);
