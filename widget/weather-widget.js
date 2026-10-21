@@ -305,27 +305,17 @@ module.exports = async function weatherWidget(opts = {}) {
     const colWidth = Math.floor(width / count);
     const row = stack.addStack();
     row.size = new Size(colWidth * count, 0);
-    const centered = (col) => {
-      const r = col.addStack();
-      r.size = new Size(colWidth, 0);
-      r.addSpacer();
-      return r;
-    };
     hours.slice(0, count).forEach((h) => {
+      // A fixed-width vertical stack with centerAlignContent centres each item horizontally.
       const col = row.addStack();
       col.layoutVertically();
+      col.centerAlignContent();
       col.size = new Size(colWidth, 0);
-      const top = centered(col);
-      addText(top, h.now ? 'Now' : hourFmt.string(h.t), 11, { color: h.now ? WHITE : DIM, weight: h.now ? 'semibold' : undefined, scale: 0.8 });
-      top.addSpacer();
+      addText(col, h.now ? 'Now' : hourFmt.string(h.t), 11, { color: h.now ? WHITE : DIM, weight: h.now ? 'semibold' : undefined, scale: 0.6 });
       col.addSpacer(3);
-      const mid = centered(col);
-      addSymbol(mid, symbolName(h.code, h.isDay), 16);
-      mid.addSpacer();
+      addSymbol(col, symbolName(h.code, h.isDay), 16);
       col.addSpacer(3);
-      const bot = centered(col);
-      addText(bot, deg(h.temp), 12, { weight: 'semibold', scale: 0.7 });
-      bot.addSpacer();
+      addText(col, deg(h.temp), 12, { weight: 'semibold', scale: 0.7 });
     });
   }
 
