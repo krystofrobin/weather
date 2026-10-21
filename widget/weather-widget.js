@@ -136,7 +136,7 @@ module.exports = async function weatherWidget(opts = {}) {
       'current=temperature_2m,apparent_temperature,weather_code,is_day',
       'hourly=temperature_2m,weather_code,is_day,precipitation',
       'daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum',
-      'minutely_15=precipitation', 'past_minutely_15=1', 'forecast_minutely_15=10',
+      'minutely_15=precipitation', 'past_minutely_15=4', 'forecast_minutely_15=24',
       'forecast_days=6', 'timezone=auto', 'timeformat=unixtime',
     ].join('&');
     const key = `fc:${place.lat.toFixed(2)},${place.lon.toFixed(2)}`;
@@ -160,9 +160,16 @@ module.exports = async function weatherWidget(opts = {}) {
 
     let hi = h.time.findIndex((t) => t * 1000 > now) - 1;
     if (hi < 0) hi = 0;
+    // Starts with the current hour ("Now"), so the rain chart above it can begin at the top of this hour.
     const hours = [];
-    for (let i = hi + 1; i < h.time.length && hours.length < 6; i++) {
-      hours.push({ t: new Date(h.time[i] * 1000), temp: h.temperature_2m[i], code: h.weather_code[i], isDay: h.is_day[i], mm: h.precipitation[i] });
+    for (let i = hi; i < h.time.length && hours.length < 5; i++) {
+      const isNow = i === hi;
+      hours.push({
+        t: new Date(h.time[i] * 1000), now: isNow,
+        temp: isNow ? c.temperature_2m : h.temperature_2m[i],
+        code: isNow ? c.weather_code : h.weather_code[i],
+        isDay: isNow ? c.is_day : h.is_day[i],
+      });
     }
 
     const m = fc.minutely_15 || { time: [], precipitation: [] };
@@ -171,6 +178,15 @@ module.exports = async function weatherWidget(opts = {}) {
       .filter((s) => s.t.getTime() > now - 15 * 60 * 1000 && s.mm != null)
       .slice(0, 9);
     const wet = slots.map((s) => s.mm >= WET);
+
+    // 15-minute rain amounts for the hours shown in the hourly row, 4 per hour.
+    const byTime = new Map(m.time.map((t, i) => [t * 1000, m.precipitation[i]]));
+    const start = hours.length ? hours[0].t.getTime() : now;
+    const timeline = [];
+    for (let k = 0; k < hours.length * 4; k++) {
+      const t = start + k * 15 * 60 * 1000;
+      timeline.push({ mm: byTime.has(t) ? byTime.get(t) : null, past: t + 15 * 60 * 1000 <= now });
+    }
     let rain = null;
     if (slots.length >= 2) {
       if (wet[0]) {
@@ -189,31 +205,47 @@ module.exports = async function weatherWidget(opts = {}) {
     return {
       temp: c.temperature_2m, feels: c.apparent_temperature, code: c.weather_code, isDay: c.is_day,
       max: d.temperature_2m_max[0], min: d.temperature_2m_min[0],
-      hours, slots, rain, rainSoon: wet.some(Boolean), days,
+      hours, timeline, rain, rainSoon: wet.some(Boolean), days,
     };
   }
 
   // ---------- drawing ----------
 
-  function rainChart(slots, width, height) {
+  // One bar per 15 minutes, 4 per hour column, so each bar sits above the hour it belongs to.
+  function rainChart(timeline, colWidth, height) {
     const ctx = new DrawContext();
+    const width = colWidth * (timeline.length / 4);
     ctx.size = new Size(width, height);
     ctx.opaque = false;
     ctx.respectScreenScale = true;
-    const n = Math.max(1, slots.length);
-    const gap = 3;
-    const bw = (width - gap * (n - 1)) / n;
-    slots.forEach((s, k) => {
-      const dry = s.mm < WET;
-      const rate = s.mm * 4; // mm/h
-      const bh = dry ? 2 : Math.max(8, Math.min(1, Math.sqrt(rate / 8)) * (height - 2));
-      ctx.setFillColor(dry ? new Color('#ffffff', 0.25) : RAIN);
+    const slot = colWidth / 4;
+    const gap = 1.5;
+    timeline.forEach((x, k) => {
+      if (x.mm == null) return;
+      const dry = x.mm < WET;
+      const rate = x.mm * 4; // mm/h
+      const bh = dry ? 2 : Math.max(6, Math.min(1, Math.sqrt(rate / 8)) * (height - 2));
+      const alpha = x.past ? 0.35 : 1;
+      ctx.setFillColor(dry ? new Color('#ffffff', 0.25 * alpha) : new Color('#5fb4ff', alpha));
       const path = new Path();
-      path.addRoundedRect(new Rect(k * (bw + gap), height - bh, bw, bh), 2, 2);
+      path.addRoundedRect(new Rect(k * slot + gap / 2, height - bh, slot - gap, bh), 1.5, 1.5);
       ctx.addPath(path);
       ctx.fillPath();
     });
-    return ctx.getImage();
+    return { image: ctx.getImage(), size: new Size(width, height) };
+  }
+
+  // Rain headline, then the rain chart directly above the hourly row, sharing its column grid.
+  function timelineBlock(stack, s, width) {
+    const colWidth = Math.floor(width / 5);
+    rainLine(stack, s, 12);
+    stack.addSpacer(6);
+    if (s.timeline.some((x) => x.mm != null)) {
+      const chart = rainChart(s.timeline, colWidth, 24);
+      stack.addImage(chart.image).imageSize = chart.size;
+      stack.addSpacer(2);
+    }
+    hourlyRow(stack, s.hours, 5, width);
   }
 
   function addSymbol(stack, name, size, color = WHITE) {
@@ -284,7 +316,7 @@ module.exports = async function weatherWidget(opts = {}) {
       col.layoutVertically();
       col.size = new Size(colWidth, 0);
       const top = centered(col);
-      addText(top, hourFmt.string(h.t), 11, { color: DIM, scale: 0.8 });
+      addText(top, h.now ? 'Now' : hourFmt.string(h.t), 11, { color: h.now ? WHITE : DIM, weight: h.now ? 'semibold' : undefined, scale: 0.8 });
       top.addSpacer();
       col.addSpacer(3);
       const mid = centered(col);
@@ -348,30 +380,22 @@ module.exports = async function weatherWidget(opts = {}) {
     const top = w.addStack();
     const left = top.addStack();
     left.layoutVertically();
-    left.size = new Size(family === 'large' ? 140 : 118, 0);
+    left.size = new Size(118, 0);
     currentBlock(left, place, s, family === 'large');
     top.addSpacer(12);
     const right = top.addStack();
     right.layoutVertically();
     right.size = new Size(160, 0);
     if (family === 'medium') {
-      rainLine(right, s, 12);
-      right.addSpacer(4);
-      if (s.slots.length) right.addImage(rainChart(s.slots, 160, 26)).imageSize = new Size(160, 26);
-      right.addSpacer(6);
-      hourlyRow(right, s.hours, 5, 160);
+      timelineBlock(right, s, 160);
       w.addSpacer();
       footer(w, at, stale);
       return w;
     }
 
     // large
-    hourlyRow(right, s.hours, 5, 160);
-    w.addSpacer(12);
-    rainLine(w, s, 13);
-    w.addSpacer(4);
-    if (s.slots.length) w.addImage(rainChart(s.slots, 300, 34)).imageSize = new Size(300, 34);
-    w.addSpacer(10);
+    timelineBlock(right, s, 160);
+    w.addSpacer(14);
     s.days.slice(1, 6).forEach((d) => {
       const r = w.addStack();
       r.centerAlignContent();
