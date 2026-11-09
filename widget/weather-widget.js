@@ -97,8 +97,11 @@ module.exports = async function weatherWidget(opts = {}) {
       const key = `geo:${param.toLowerCase()}`;
       if (cache[key]) return cache[key];
       const q = encodeURIComponent(param);
-      const r = await getJSON(`${GEOCODE_URL}?name=${q}&count=1&language=en&format=json`);
-      const hit = r.results && r.results[0];
+      const r = await getJSON(`${GEOCODE_URL}?name=${q}&count=10&language=en&format=json`);
+      // Several places can share a name; take the one nearest to the last known position.
+      const near = cache.gps;
+      const dist = (x) => (near ? (x.latitude - near.lat) ** 2 + ((x.longitude - near.lon) * Math.cos(near.lat * Math.PI / 180)) ** 2 : 0);
+      const hit = (r.results || []).slice().sort((x, y) => dist(x) - dist(y))[0];
       if (!hit) throw new Error(`Place "${param}" not found`);
       cache[key] = { lat: hit.latitude, lon: hit.longitude, name: hit.name, fixed: true };
       saveCache();
