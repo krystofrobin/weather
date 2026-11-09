@@ -1,6 +1,6 @@
 // Offline support: app shell is network-first (so updates show up immediately),
 // pinned CDN libraries are cache-first. Weather data is cached by the app itself.
-const CACHE = 'weather-v4';
+const CACHE = 'weather-v5';
 const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'manifest.webmanifest', 'icons/icon.svg', 'icons/apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {

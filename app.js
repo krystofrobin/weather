@@ -192,17 +192,39 @@ async function reverseGeocode(lat, lon) {
   }
 }
 
+// Distance in km between two coordinates (haversine).
+function distanceKm(a, b) {
+  const rad = (d) => (d * Math.PI) / 180;
+  const dLat = rad(b.lat - a.lat);
+  const dLon = rad(b.lon - a.lon);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLon / 2) ** 2;
+  return 6371 * 2 * Math.asin(Math.sqrt(h));
+}
+
+// Most specific district plus state, e.g. "Landkreis Lindau, Bavaria".
+function regionLabel(x) {
+  const parts = [...new Set([x.admin3, x.admin2, x.admin1].filter((a) => a && a !== x.name))];
+  return (parts.length > 2 ? [parts[0], parts[parts.length - 1]] : parts).join(', ');
+}
+
 async function searchPlaces(q) {
-  const p = new URLSearchParams({ name: q, count: '8', language: 'en', format: 'json' });
+  const p = new URLSearchParams({ name: q, count: '10', language: 'en', format: 'json' });
   const r = await getJSON(`${GEOCODE_URL}?${p}`);
-  return (r.results || []).map((x) => ({
+  const places = (r.results || []).map((x) => ({
     id: String(x.id),
     name: x.name,
-    admin: x.admin1 || '',
+    // District and state, so places with the same name (there are two Buchenbühls in Bavaria) can be told apart.
+    admin: regionLabel(x),
     country: x.country || x.country_code || '',
     lat: x.latitude,
     lon: x.longitude,
   }));
+  // Nearest first when we know where the user is.
+  if (state.gps) {
+    for (const pl of places) pl.km = distanceKm(state.gps, pl);
+    places.sort((a, b) => a.km - b.km);
+  }
+  return places;
 }
 
 function locate() {
@@ -591,7 +613,7 @@ function onSearchInput(e) {
       out.innerHTML = results.length
         ? results.map((r, k) => `
           <li><button class="place-item result-item" data-result="${k}">
-            <div class="main"><div class="nm">${esc(r.name)}</div><div class="sub">${esc([r.admin, r.country].filter(Boolean).join(', '))}</div></div>
+            <div class="main"><div class="nm">${esc(r.name)}</div><div class="sub">${esc([r.admin, r.country].filter(Boolean).join(', '))}${r.km != null ? ` · ${r.km < 10 ? r.km.toFixed(1) : Math.round(r.km)} km away` : ''}</div></div>
             <span>＋</span>
           </button></li>`).join('')
         : '<li class="hint">No places found</li>';
@@ -599,7 +621,7 @@ function onSearchInput(e) {
         const b = ev.target.closest('[data-result]');
         if (!b) return;
         const r = results[Number(b.dataset.result)];
-        if (!state.places.some((p) => p.id === r.id)) state.places.push(r);
+        if (!state.places.some((p) => p.id === r.id)) state.places.push({ id: r.id, name: r.name, admin: r.admin, country: r.country, lat: r.lat, lon: r.lon });
         $('#search').value = '';
         out.innerHTML = '';
         selectPlace(r.id);
