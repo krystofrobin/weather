@@ -8,22 +8,13 @@ jobs:
     steps:
       - name: probe
         run: |
-          LAT=49.505; LON=11.13
-          B="https://maps.dwd.de/geoserver/dwd/wms"
-          REF=$(curl -sS "https://maps.dwd.de/geoserver/dwd/Niederschlagsradar/wms?service=WMS&version=1.3.0&request=GetCapabilities" | grep -o 'name="REFERENCE_TIME"[^>]*default="[^"]*"' | grep -o 'default="[^"]*"' | cut -d'"' -f2)
-          echo "REF=$REF  now=$(date -u +%FT%TZ)"
-          BB="$(echo "$LAT-0.01" | bc),$(echo "$LON-0.01" | bc),$(echo "$LAT+0.01" | bc),$(echo "$LON+0.01" | bc)"
-          for L in Niederschlagsradar Radar_rv_product_1x1km_ger Radar_wn-product_1x1km_ger; do
-            echo "== $L single time"
-            curl -sS "$B?service=WMS&version=1.3.0&request=GetFeatureInfo&layers=dwd:$L&query_layers=dwd:$L&crs=EPSG:4326&bbox=$BB&width=3&height=3&i=1&j=1&info_format=application/json&time=$REF" | head -c 700; echo
-          done
-          T1=$(date -u -d "$REF - 60 min" +%FT%H:%M:00Z); T2=$(date -u -d "$REF + 120 min" +%FT%H:%M:00Z)
-          echo "== range $T1/$T2"
-          curl -sS "$B?service=WMS&version=1.3.0&request=GetFeatureInfo&layers=dwd:Niederschlagsradar&query_layers=dwd:Niederschlagsradar&crs=EPSG:4326&bbox=$BB&width=3&height=3&i=1&j=1&info_format=application/json&feature_count=100&time=$T1/$T2" | head -c 3000; echo
-          echo "== CORS"; curl -sS -D - -o /dev/null -H "Origin: https://krystofrobin.github.io" "$B?service=WMS&version=1.3.0&request=GetFeatureInfo&layers=dwd:Niederschlagsradar&query_layers=dwd:Niederschlagsradar&crs=EPSG:4326&bbox=$BB&width=3&height=3&i=1&j=1&info_format=application/json&time=$REF" | grep -i "access-control-allow-origin\|content-type"
-          echo "== wider area max now (is it raining anywhere near?)"
-          curl -sS "$B?service=WMS&version=1.3.0&request=GetFeatureInfo&layers=dwd:Niederschlagsradar&query_layers=dwd:Niederschlagsradar&crs=EPSG:4326&bbox=49,10.5,50,11.7&width=9&height=9&i=4&j=4&info_format=application/json&time=$REF" | head -c 400; echo
-          for M in icon_seamless best_match icon_d2; do
-            echo "== open-meteo $M"
-            curl -sS "https://api.open-meteo.com/v1/forecast?latitude=$LAT&longitude=$LON&models=$M&current=precipitation,rain,weather_code,temperature_2m&minutely_15=precipitation&past_minutely_15=2&forecast_minutely_15=9&timezone=UTC" | head -c 900; echo
-          done
+          curl -sS "https://geocoding-api.open-meteo.com/v1/search?name=Buchenb%C3%BChl&count=10&language=en&format=json" > g.json
+          python3 - <<'PY'
+          import json, urllib.request
+          for r in json.load(open('g.json')).get('results', []):
+              u = f"https://api.open-meteo.com/v1/forecast?latitude={r['latitude']}&longitude={r['longitude']}&models=icon_seamless&current=temperature_2m,weather_code,precipitation&daily=temperature_2m_max,temperature_2m_min&forecast_days=1&timezone=auto"
+              c = json.load(urllib.request.urlopen(u))
+              print(r['name'], r.get('admin1'), r.get('admin2'), r.get('admin3'), r['latitude'], r['longitude'], '->', c['current'], c['daily']['temperature_2m_max'], c['daily']['temperature_2m_min'])
+          PY
+          echo "== reverse geocode Nuremberg-Buchenbuehl"
+          curl -sS "https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=49.505&longitude=11.13&localityLanguage=en" | head -c 400; echo
